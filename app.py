@@ -21,26 +21,35 @@ if 'pdf_pronto' not in st.session_state:
     st.session_state.pdf_pronto = None
 
 def upload_to_drive(file_content, filename, folder_name):
-    # O Streamlit já carrega o secret como dicionário, não precisa de json.loads
     creds_dict = st.secrets["google_credentials"]
     creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
     service = build('drive', 'v3', credentials=creds)
     
-    # 1. Busca ou cria a pasta do Consultor dentro da PARENT_FOLDER_ID
+    # 1. Busca ou cria a pasta do Consultor
     query = f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and '{PARENT_FOLDER_ID}' in parents and trashed = false"
-    results = service.files().list(q=query).execute().get('files', [])
+    results = service.files().list(q=query, supportsAllDrives=True, includeItemsFromAllDrives=True).execute().get('files', [])
     
     if not results:
         file_metadata = {'name': folder_name, 'mimeType': 'application/vnd.google-apps.folder', 'parents': [PARENT_FOLDER_ID]}
-        folder = service.files().create(body=file_metadata, fields='id').execute()
+        folder = service.files().create(body=file_metadata, fields='id', supportsAllDrives=True).execute()
         folder_id = folder.get('id')
     else:
         folder_id = results[0]['id']
 
-    # 2. Upload do PDF
-    file_metadata = {'name': filename, 'parents': [folder_id]}
-    media = MediaIoBaseUpload(file_content, mimetype='application/pdf')
-    service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+    # 2. Upload do PDF (Ajustado para usar a cota da pasta pai)
+    file_metadata = {
+        'name': filename, 
+        'parents': [folder_id]
+    }
+    media = MediaIoBaseUpload(file_content, mimetype='application/pdf', resumable=True)
+    
+    # Criar o arquivo garantindo que ele herde as permissões e use a cota do proprietário da pasta
+    service.files().create(
+        body=file_metadata, 
+        media_body=media, 
+        fields='id',
+        supportsAllDrives=True # Essencial para evitar o erro de cota em Service Accounts
+    ).execute()
 
 def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
     pdf = FPDF()
