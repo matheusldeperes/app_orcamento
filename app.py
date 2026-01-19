@@ -11,7 +11,7 @@ import unicodedata
 # --- CONFIGURAÇÕES ---
 # Removidos quaisquer possíveis caracteres especiais ocultos nos nomes
 CONSULTORES = {
-    "Diulie": "diulie@sattealam.com",
+    "Diulie": "oficina@sattealam.com",
     "Jonathan": "jonathan@sattealam.com",
     "Jose": "joseantonio@sattealam.com"
 }
