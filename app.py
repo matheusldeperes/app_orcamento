@@ -25,7 +25,7 @@ if 'finalizado' not in st.session_state:
 def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
     margem = 25.4
     largura_disponivel = 210 - (2 * margem)
-    largura_logo = 40 # Aumentei um pouco para melhor visibilidade
+    largura_logo = 40 
     
     pdf = FPDF()
     pdf.set_margins(left=margem, top=margem, right=margem)
@@ -38,8 +38,8 @@ def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
         pdf.image("assets/logo.png", x=pos_x_logo, y=15, w=largura_logo)
     
     pdf.set_font("helvetica", "B", 16)
-    pdf.ln(25) # Espaço maior após o logo centralizado
-    pdf.cell(0, 10, "Satte Alam - Orcamento", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
+    pdf.ln(25) 
+    pdf.cell(0, 10, "Satte Alam - Orçamento", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
     pdf.ln(10)
     
     pdf.set_font("helvetica", size=12)
@@ -47,7 +47,9 @@ def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
     pdf.cell(0, 10, f"Data: {datetime.now().strftime('%d/%m/%Y')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(5)
     
-    pdf.multi_cell(0, 10, f"Notas:\n{dados.replace('\xa0', ' ')}")
+    # Tratamento de texto para evitar erros de codificação no PDF
+    texto_pdf = dados.replace('\xa0', ' ').encode('latin-1', 'ignore').decode('latin-1')
+    pdf.multi_cell(0, 10, f"Notas:\n{texto_pdf}")
     pdf.ln(10)
     
     for foto in fotos:
@@ -72,13 +74,14 @@ def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
 # --- INTERFACE ---
 st.set_page_config(page_title="Satte Alam Mobile", layout="centered")
 
-# CSS para centralizar a imagem no App Streamlit de forma absoluta
+# CSS para centralizar a imagem no App Streamlit
 st.markdown(
     """
     <style>
     .centered-img {
         display: flex;
         justify-content: center;
+        margin-bottom: 20px;
     }
     </style>
     """,
@@ -86,16 +89,15 @@ st.markdown(
 )
 
 if os.path.exists("assets/logo.png"):
-    # Cria uma div centralizada para a logo
     st.markdown('<div class="centered-img">', unsafe_allow_html=True)
     st.image("assets/logo.png", width=150)
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.title("Registro de Evidencias")
+st.title("Registro de Evidências")
 
 c1, c2 = st.columns(2)
 consultor_nome = c1.selectbox("Selecione o Consultor", list(CONSULTORES.keys()))
-os_num = c2.text_input("Numero da OS")
+os_num = c2.text_input("Número da OS")
 
 # --- CAPTURA DE FOTOS ---
 foto_capturada = st.camera_input("Capturar Foto")
@@ -107,7 +109,7 @@ if foto_capturada:
         st.toast(f"Foto {len(st.session_state.lista_fotos)} adicionada")
 
 if st.session_state.lista_fotos:
-    st.write(f"### Evidencias ({len(st.session_state.lista_fotos)})")
+    st.write(f"### Evidências ({len(st.session_state.lista_fotos)})")
     cols = st.columns(3)
     for i, foto in enumerate(st.session_state.lista_fotos):
         with cols[i % 3]:
@@ -116,13 +118,13 @@ if st.session_state.lista_fotos:
                 st.session_state.lista_fotos.pop(i)
                 st.rerun()
 
-texto = st.text_area("Observacoes Tecnicas")
+texto = st.text_area("Observações Técnicas")
 
 # --- FINALIZAÇÃO ---
 if not st.session_state.finalizado:
     botao_liberado = True if os_num and st.session_state.lista_fotos else False
     
-    if st.button("Gerar Orcamento", use_container_width=True, disabled=not botao_liberado):
+    if st.button("Gerar Orçamento", use_container_width=True, disabled=not botao_liberado):
         pdf_bytes = gerar_pdf_bytes(texto, st.session_state.lista_fotos, consultor_nome, os_num)
         st.session_state.pdf_pronto = pdf_bytes
         st.session_state.finalizado = True
@@ -140,7 +142,7 @@ if st.session_state.finalizado:
     )
     
     numero_zap = CONSULTORES[consultor_nome]
-    msg = f"Ola {consultor_nome}, seguem fotos da OS {os_num}. (Anexe o PDF que voce baixou)"
+    msg = f"Olá {consultor_nome}, seguem fotos da OS {os_num}. (Anexe o PDF que você baixou)"
     link_zap = f"https://wa.me/{numero_zap}?text={urllib.parse.quote(msg)}"
     
     st.link_button("2. ENVIAR WHATSAPP", link_zap, use_container_width=True)
