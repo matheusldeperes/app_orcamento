@@ -9,7 +9,7 @@ import yagmail # Biblioteca robusta para transporte de e-mail
 
 # --- CONFIGURAÇÕES ---
 CONSULTORES = {
-    "Diulie": "diulie@sattealam.com",
+    "Diulie": "oficina@sattealam.com",
     "Jonathan": "jonathan@sattealam.com",
     "Jose": "joseantonio@sattealam.com" # Removido acento para evitar conflito de rede
 }
