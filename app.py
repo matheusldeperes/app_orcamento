@@ -4,54 +4,40 @@ import os
 from datetime import datetime
 from PIL import Image
 import io
-import smtplib
-from email.message import EmailMessage
+import urllib.parse
+import requests
 
 # --- CONFIGURAÇÕES ---
 CONSULTORES = {
-    "Diulie": "diulie@sattealam.com",
-    "Jonathan": "jonathan@sattealam.com",
-    "José": "joseantonio@sattealam.com"
+    "Diulie": "5553981288887",
+    "José": "555330261204",
+    "Jonathan": "555330261329"
 }
-EMAIL_COPIA = "oficina@sattealam.com"
 
 # Inicialização do Estado
 if 'lista_fotos' not in st.session_state:
     st.session_state.lista_fotos = []
-if 'pdf_pronto' not in st.session_state:
-    st.session_state.pdf_pronto = None
-if 'email_enviado' not in st.session_state:
-    st.session_state.email_enviado = False
+if 'link_pdf' not in st.session_state:
+    st.session_state.link_pdf = None
 
-def enviar_email_blindado(pdf_bytes, filename, destinatario, os_numero):
-    remetente = st.secrets["email_usuario"]
-    senha = st.secrets["email_senha"]
-    
-    # Usando EmailMessage (mais moderna e robusta contra erros de ASCII)
-    msg = EmailMessage()
-    msg['Subject'] = f"Orçamento - Evidências da OS_{os_numero}"
-    msg['From'] = remetente
-    msg['To'] = destinatario
-    msg['Cc'] = EMAIL_COPIA
-    
-    corpo = f"Olá,\n\nSegue em anexo o PDF com as evidências da OS {os_numero}.\n\nEnviado via App Mobile Satte Alam."
-    msg.set_content(corpo) # O set_content já trata UTF-8 automaticamente
-
-    # Anexando o PDF como dados binários puros (evita erro de codec)
-    msg.add_attachment(
-        pdf_bytes,
-        maintype='application',
-        subtype='pdf',
-        filename=filename
-    )
-    
-    # Envio via SMTP
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-        server.login(remetente, senha)
-        server.send_message(msg)
+def hospedar_pdf_temporario(pdf_bytes, filename):
+    """
+    Faz upload para o serviço file.io (grátis e sem conta) 
+    para gerar um link que o consultor possa abrir.
+    """
+    try:
+        files = {'file': (filename, pdf_bytes, 'application/pdf')}
+        # O arquivo expira em 1 dia ou após o primeiro download
+        response = requests.post('https://file.io/?expires=1d', files=files)
+        if response.status_code == 200:
+            return response.json().get('link')
+        else:
+            return None
+    except:
+        return None
 
 def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
-    # Forçamos a limpeza de qualquer caractere problemático antes de entrar no PDF
+    # Limpeza radical para evitar erros de codec
     dados_limpos = "".join(c for c in dados if ord(c) < 256).replace('\xa0', ' ')
     
     pdf = FPDF()
@@ -77,13 +63,13 @@ def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
         img_byte_arr = io.BytesIO()
-        img.save(img_byte_arr, format='JPEG', quality=70) # Quality 70 para reduzir peso do email
+        img.save(img_byte_arr, format='JPEG', quality=70)
         if pdf.get_y() > 220:
             pdf.add_page()
         pdf.image(img_byte_arr, x=10, w=100)
         pdf.ln(5)
         
-    return pdf.output() # No fpdf2 isso já retorna bytes
+    return bytes(pdf.output())
 
 # --- INTERFACE ---
 st.set_page_config(page_title="Satte Alam Mobile", layout="centered")
@@ -113,37 +99,30 @@ if st.session_state.lista_fotos:
 
 texto = st.text_area("Observações Técnicas")
 
-# --- LÓGICA DE ENVIO ---
-if not st.session_state.email_enviado:
-    if st.button("🚀 Finalizar e Enviar Orçamento", use_container_width=True):
-        if os_num and st.session_state.lista_fotos:
-            with st.spinner("Enviando..."):
-                try:
-                    # 1. Gera o PDF
-                    pdf_bytes = gerar_pdf_bytes(texto, st.session_state.lista_fotos, consultor_nome, os_num)
-                    st.session_state.pdf_pronto = pdf_bytes
-                    
-                    # 2. Envia Email (Blindado)
-                    enviar_email_blindado(pdf_bytes, f"OS_{os_num}.pdf", CONSULTORES[consultor_nome], os_num)
-                    
-                    st.session_state.email_enviado = True
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Erro Crítico: {e}")
-        else:
-            st.warning("⚠️ Informe a OS e capture fotos.")
+# --- LÓGICA DE ENVIO AUTOMÁTICO ---
+if st.button("🚀 FINALIZAR E ENVIAR WHATSAPP", use_container_width=True):
+    if os_num and st.session_state.lista_fotos:
+        with st.spinner("Gerando Link do PDF..."):
+            # 1. Gera o PDF
+            pdf_bytes = gerar_pdf_bytes(texto, st.session_state.lista_fotos, consultor_nome, os_num)
+            
+            # 2. Hospeda o PDF para gerar um link clicável
+            link = hospedar_pdf_temporario(pdf_bytes, f"OS_{os_num}.pdf")
+            
+            if link:
+                # 3. Monta o Link do WhatsApp com o link do PDF já na mensagem
+                numero_zap = CONSULTORES[consultor_nome]
+                msg = f"Olá {consultor_nome}, segue as evidências da OS {os_num}. Clique para abrir o PDF: {link}"
+                link_whatsapp = f"https://wa.me/{numero_zap}?text={urllib.parse.quote(msg)}"
+                
+                # Abre o WhatsApp automaticamente (ou via botão de segurança)
+                st.success("PDF pronto para envio!")
+                st.link_button("CLIQUE AQUI PARA CONFIRMAR ENVIO", link_whatsapp, type="primary", use_container_width=True)
+            else:
+                st.error("Erro ao gerar link do arquivo. Verifique sua conexão.")
+    else:
+        st.warning("⚠️ Preencha a OS e tire fotos.")
 
-if st.session_state.email_enviado:
-    st.success(f"✅ Enviado com sucesso para {consultor_nome} e Oficina!")
-    st.download_button(
-        label="📥 Baixar Cópia no Celular",
-        data=st.session_state.pdf_pronto,
-        file_name=f"OS_{os_num}.pdf",
-        mime="application/pdf",
-        use_container_width=True
-    )
-    if st.button("Nova OS (Limpar)", type="primary"):
-        st.session_state.lista_fotos = []
-        st.session_state.pdf_pronto = None
-        st.session_state.email_enviado = False
-        st.rerun()
+if st.button("Nova OS (Limpar)"):
+    st.session_state.lista_fotos = []
+    st.rerun()
