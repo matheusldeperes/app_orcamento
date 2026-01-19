@@ -5,17 +5,14 @@ import os
 from datetime import datetime
 from PIL import Image
 import io
-import yagmail
-import unicodedata
+import urllib.parse
 
 # --- CONFIGURAÇÕES ---
-# Removidos quaisquer possíveis caracteres especiais ocultos nos nomes
 CONSULTORES = {
-    "Diulie": "oficina@sattealam.com",
-    "Jonathan": "jonathan@sattealam.com",
-    "Jose": "joseantonio@sattealam.com"
+    "Diulie": "555330261206",
+    "José": "555330261204",
+    "Jonathan": "555330261329"
 }
-EMAIL_COPIA = "oficina@sattealam.com"
 
 # Inicialização do Estado
 if 'lista_fotos' not in st.session_state:
@@ -25,54 +22,8 @@ if 'pdf_pronto' not in st.session_state:
 if 'finalizado' not in st.session_state:
     st.session_state.finalizado = False
 
-def limpar_header(texto):
-    """
-    Remove qualquer caractere não-ASCII (como \xa0 ou acentos) 
-    apenas para os campos de cabeçalho do e-mail (Assunto e Nome de Arquivo).
-    """
-    if not texto:
-        return ""
-    # Normaliza e remove acentos/caracteres especiais
-    nfkd_form = unicodedata.normalize('NFKD', str(texto))
-    texto_limpo = "".join([c for c in nfkd_form if not unicodedata.combining(c)])
-    # Substitui o \xa0 e outros espaços por espaço simples e remove o que não for ASCII
-    return texto_limpo.replace('\xa0', ' ').encode('ascii', 'ignore').decode('ascii')
-
-def enviar_email_yagmail(pdf_bytes, filename, destinatario, os_numero):
-    usuario = st.secrets["email_usuario"]
-    senha = st.secrets["email_senha"]
-    
-    try:
-        yag = yagmail.SMTP(usuario, senha)
-        
-        # Limpeza absoluta dos campos de cabeçalho
-        os_limpa = limpar_header(os_numero)
-        file_limpo = limpar_header(filename)
-        assunto_limpo = limpar_header(f"Orcamento - Evidencias da OS {os_limpa}")
-        
-        # Salva temporariamente o arquivo com nome limpo
-        with open(file_limpo, "wb") as f:
-            f.write(pdf_bytes)
-        
-        conteudo = f"Seguem anexas as evidencias da OS {os_limpa}."
-        
-        # Envio forçando a limpeza
-        yag.send(
-            to=[destinatario, EMAIL_COPIA],
-            subject=assunto_limpo,
-            contents=conteudo,
-            attachments=file_limpo
-        )
-        
-        if os.path.exists(file_limpo):
-            os.remove(file_limpo)
-            
-    except Exception as e:
-        st.error(f"Erro no transporte do e-mail: {e}")
-        raise e
-
 def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
-    # No PDF podemos manter caracteres latinos, pois usamos latin-1 ignore
+    # Limpeza para evitar qualquer erro de caractere no PDF
     dados_limpos = dados.replace('\xa0', ' ').encode('latin-1', 'ignore').decode('latin-1')
     
     pdf = FPDF()
@@ -108,6 +59,7 @@ def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
         pdf.image(img_byte_arr, x=10, w=100)
         pdf.ln(5)
         
+    # Converte explicitamente para bytes para evitar erro de binary format no Streamlit
     return bytes(pdf.output())
 
 # --- INTERFACE ---
@@ -119,7 +71,7 @@ if os.path.exists("assets/logo.png"):
 st.title("📸 Registro de Evidências")
 
 c1, c2 = st.columns(2)
-consultor_nome = c1.selectbox("Consultor", list(CONSULTORES.keys()))
+consultor_nome = c1.selectbox("Selecione o Consultor", list(CONSULTORES.keys()))
 os_num = c2.text_input("Número da OS")
 
 foto_capturada = st.camera_input("Tirar Foto")
@@ -138,36 +90,44 @@ if st.session_state.lista_fotos:
 
 texto = st.text_area("Observações Técnicas")
 
-# --- LÓGICA DE ENVIO ---
+# --- FLUXO DE FINALIZAÇÃO ---
 if not st.session_state.finalizado:
-    if st.button("🚀 Finalizar e Enviar por E-mail", use_container_width=True):
+    if st.button("🚀 Gerar Orçamento", use_container_width=True):
         if os_num and st.session_state.lista_fotos:
-            with st.spinner("Limpando dados e enviando..."):
+            with st.spinner("Gerando PDF..."):
                 try:
-                    # 1. Gera o PDF
                     pdf_bytes = gerar_pdf_bytes(texto, st.session_state.lista_fotos, consultor_nome, os_num)
                     st.session_state.pdf_pronto = pdf_bytes
-                    
-                    # 2. Envia (com os headers blindados em ASCII)
-                    enviar_email_yagmail(pdf_bytes, f"OS_{os_num}.pdf", CONSULTORES[consultor_nome], os_num)
-                    
                     st.session_state.finalizado = True
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Erro Crítico no Envio: {e}")
+                    st.error(f"Erro ao gerar: {e}")
         else:
-            st.warning("⚠️ Preencha a OS e capture fotos.")
+            st.warning("⚠️ Informe a OS e capture fotos.")
 
+# --- AÇÕES PÓS-GERAÇÃO ---
 if st.session_state.finalizado:
-    st.success("✅ E-mail enviado com sucesso!")
+    st.success(f"✅ Orçamento da OS {os_num} gerado!")
+    
+    # 1. Botão de Download (Crucial para iOS e Android terem o arquivo na galeria/arquivos)
     st.download_button(
-        label="📥 Baixar Cópia no Celular",
+        label="1. 📥 BAIXAR PDF NO CELULAR",
         data=st.session_state.pdf_pronto,
         file_name=f"OS_{os_num}.pdf",
         mime="application/pdf",
         use_container_width=True
     )
-    if st.button("Nova OS (Limpar)"):
+    
+    # 2. Link do WhatsApp
+    numero_zap = CONSULTORES[consultor_nome]
+    msg = f"Olá {consultor_nome}, seguem evidências da OS {os_num}. (Anexe o PDF que você acabou de baixar)"
+    msg_url = urllib.parse.quote(msg)
+    link_zap = f"https://wa.me/{numero_zap}?text={msg_url}"
+    
+    st.link_button(f"2. 🟢 ENVIAR PARA WHATSAPP DE {consultor_nome.upper()}", link_zap, use_container_width=True)
+
+    st.write("---")
+    if st.button("Nova OS (Limpar Tudo)", type="primary"):
         st.session_state.lista_fotos = []
         st.session_state.pdf_pronto = None
         st.session_state.finalizado = False
