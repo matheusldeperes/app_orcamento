@@ -142,7 +142,7 @@ if st.session_state.finalizado:
     )
     
     numero_zap = CONSULTORES[consultor_nome]
-    msg = f"Olá {consultor_nome}, seguem fotos da OS {os_num}. (Anexe o PDF que você baixou)"
+    msg = f"Olá {consultor_nome}, seguem fotos da OS {os_num}. Por favor, verifique o orçamento em anexo."
     link_zap = f"https://wa.me/{numero_zap}?text={urllib.parse.quote(msg)}"
     
     st.link_button("2. ENVIAR WHATSAPP", link_zap, use_container_width=True)
