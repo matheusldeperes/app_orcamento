@@ -55,6 +55,7 @@ def enviar_email(pdf_bytes, filename, destinatario, os_numero):
     server.quit()
 
 def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
+    dados = dados.replace('\xa0', ' ')
     pdf = FPDF()
     pdf.add_page()
     if os.path.exists("assets/logo.png"):
@@ -75,9 +76,14 @@ def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
         img = Image.open(foto)
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
+        
         img_byte_arr = io.BytesIO()
         img.save(img_byte_arr, format='JPEG')
-        if pdf.get_y() > 220: pdf.add_page()
+        
+        if pdf.get_y() > 220:
+            pdf.add_page()
+        
+        # O fpdf2 aceita o io.BytesIO diretamente
         pdf.image(img_byte_arr, x=10, w=100)
         pdf.ln(5)
     return bytes(pdf.output())
