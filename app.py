@@ -4,7 +4,6 @@ import os
 from datetime import datetime
 from PIL import Image
 import io
-import json
 # Bibliotecas para Google Drive
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -12,20 +11,23 @@ from googleapiclient.http import MediaIoBaseUpload
 
 # --- CONFIGURAÇÕES ---
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
-SERVICE_ACCOUNT_FILE = 'credentials.json' # Seu arquivo de credenciais
-PARENT_FOLDER_ID = 'ID_DA_SUA_PASTA_NO_DRIVE' # O ID que aparece na URL da pasta do Drive
+# Substitua pelo ID da pasta Satte Alam no seu Google Drive
+PARENT_FOLDER_ID = 'SUA_ID_AQUI' 
 
 # Inicialização do Estado para as Fotos
 if 'lista_fotos' not in st.session_state:
     st.session_state.lista_fotos = []
+if 'pdf_pronto' not in st.session_state:
+    st.session_state.pdf_pronto = None
 
 def upload_to_drive(file_content, filename, folder_name):
-    creds_dict = json.loads(st.secrets["google_credentials"])
+    # O Streamlit já carrega o secret como dicionário, não precisa de json.loads
+    creds_dict = st.secrets["google_credentials"]
     creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
     service = build('drive', 'v3', credentials=creds)
     
-    # 1. Busca ou cria a pasta do Consultor
-    query = f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and '{PARENT_FOLDER_ID}' in parents"
+    # 1. Busca ou cria a pasta do Consultor dentro da PARENT_FOLDER_ID
+    query = f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and '{PARENT_FOLDER_ID}' in parents and trashed = false"
     results = service.files().list(q=query).execute().get('files', [])
     
     if not results:
@@ -48,7 +50,7 @@ def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
     if os.path.exists("assets/logo.png"):
         pdf.image("assets/logo.png", x=10, y=8, w=33)
     
-    pdf.set_font("helvetica", "B", 16) # 'helvetica' é mais seguro que 'Arial' no fpdf2
+    pdf.set_font("helvetica", "B", 16)
     pdf.cell(0, 10, "Satte Alam - Orçamento", ln=True, align="C")
     pdf.ln(10)
     
@@ -62,43 +64,39 @@ def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
     
     for foto in fotos:
         img = Image.open(foto)
-        # Converte para RGB para evitar erros com transparência de PNG no PDF
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
             
         img_byte_arr = io.BytesIO()
         img.save(img_byte_arr, format='JPEG')
         
-        # Verifica espaço na página
         if pdf.get_y() > 220:
             pdf.add_page()
             
         pdf.image(img_byte_arr, x=10, w=100)
         pdf.ln(5)
         
-    # No fpdf2, o output() sem argumentos retorna os bytes do PDF
     pdf_output = pdf.output()
-    
-    # Se o retorno for bytearray, converte para bytes
-    if isinstance(pdf_output, bytearray):
-        return bytes(pdf_output)
-    return pdf_output
+    return bytes(pdf_output)
 
 # --- INTERFACE ---
 st.set_page_config(page_title="Satte Alam Mobile", layout="centered")
 
-st.title("📸 Orçamento -  Satte Alam")
+# Exibição da Logo no topo
+if os.path.exists("assets/logo.png"):
+    st.image("assets/logo.png", width=150)
+
+st.title("📸 Orçamento Satte Alam")
 
 # Seleção de Consultor e OS
 c1, c2 = st.columns(2)
 consultor = c1.selectbox("Consultor", ["Diulie", "José", "Jonathan"])
 os_num = c2.text_input("Número da OS")
 
-# 1. Coleta de Foto pela Câmera
-foto_capturada = st.camera_input("Tirar foto da evidência")
+# 1. Coleta de Foto
+foto_capturada = st.camera_input("Capturar Evidência")
 
 if foto_capturada:
-    # Evita duplicatas ao processar o frame
     if foto_capturada not in st.session_state.lista_fotos:
         st.session_state.lista_fotos.append(foto_capturada)
 
@@ -112,31 +110,41 @@ if st.session_state.lista_fotos:
             st.session_state.lista_fotos.pop(i)
             st.rerun()
 
-# 3. Texto e Envio
-texto = st.text_area("Notas do Mecânico")
+# 3. Notas
+texto = st.text_area("Observações do Orçamento")
 
-# --- FINAL DO CÓDIGO (PARTE DO BOTÃO) ---
+# --- LÓGICA DE ENVIO E DOWNLOAD ---
 
-if st.button("Gerar PDF para Teste", use_container_width=True):
+if st.button("🚀 Finalizar e Enviar para o Drive", use_container_width=True):
     if os_num and st.session_state.lista_fotos:
-        with st.spinner("Construindo PDF..."):
+        with st.spinner("Processando..."):
             try:
-                # Gera o conteúdo
-                raw_pdf = gerar_pdf_bytes(texto, st.session_state.lista_fotos, consultor, os_num)
+                # Gera o PDF
+                pdf_final = gerar_pdf_bytes(texto, st.session_state.lista_fotos, consultor, os_num)
+                st.session_state.pdf_pronto = pdf_final # Salva no estado para o download_button
                 
-                # Garante que é bytes para o Streamlit
-                pdf_final = bytes(raw_pdf)
+                # Envia para o Drive
+                pdf_buffer = io.BytesIO(pdf_final)
+                upload_to_drive(pdf_buffer, f"OS_{os_num}.pdf", consultor)
                 
-                st.success("✅ PDF gerado com sucesso!")
+                st.success(f"✅ PDF enviado com sucesso para a pasta de {consultor}!")
                 
-                st.download_button(
-                    label="Clique aqui para baixar o PDF",
-                    data=pdf_final,
-                    file_name=f"OS_{os_num}.pdf",
-                    mime="application/pdf"
-                )
-
             except Exception as e:
-                st.error(f"Erro ao gerar PDF: {e}")
+                st.error(f"Erro no processo: {e}")
     else:
-        st.warning("⚠️ Preencha a OS e tire uma foto.")
+        st.warning("⚠️ Informe a OS e capture ao menos uma foto.")
+
+# Se o PDF já foi gerado, mostra a opção de salvar no dispositivo
+if st.session_state.pdf_pronto is not None:
+    st.write("---")
+    st.download_button(
+        label="📥 Baixar cópia no Celular",
+        data=st.session_state.pdf_pronto,
+        file_name=f"OS_{os_num}.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
+    if st.button("Limpar e Nova OS"):
+        st.session_state.lista_fotos = []
+        st.session_state.pdf_pronto = None
+        st.rerun()
