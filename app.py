@@ -30,7 +30,6 @@ def enviar_email(pdf_bytes, filename, destinatario, os_numero):
     # Pega os dados dos Secrets (Configurado no Streamlit Cloud ou secrets.toml)
     remetente = st.secrets["email_usuario"]
     senha = st.secrets["email_senha"]
-    
     msg = MIMEMultipart()
     msg['From'] = remetente
     msg['To'] = destinatario
