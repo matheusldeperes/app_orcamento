@@ -5,11 +5,7 @@ from datetime import datetime
 from PIL import Image
 import io
 import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
-import re
+from email.message import EmailMessage
 
 # --- CONFIGURAÇÕES ---
 CONSULTORES = {
@@ -27,43 +23,40 @@ if 'pdf_pronto' not in st.session_state:
 if 'email_enviado' not in st.session_state:
     st.session_state.email_enviado = False
 
-def enviar_email(pdf_bytes, filename, destinatario, os_numero):
+def enviar_email_blindado(pdf_bytes, filename, destinatario, os_numero):
     remetente = st.secrets["email_usuario"]
     senha = st.secrets["email_senha"]
     
-    msg = MIMEMultipart()
+    # Usando EmailMessage (mais moderna e robusta contra erros de ASCII)
+    msg = EmailMessage()
+    msg['Subject'] = f"Orçamento - Evidências da OS_{os_numero}"
     msg['From'] = remetente
     msg['To'] = destinatario
     msg['Cc'] = EMAIL_COPIA
     
-    # AJUSTE 1: Assunto com UTF-8
-    msg['Subject'] = f"Orçamento - Evidências da OS_{os_numero}"
-    
-    # AJUSTE 2: Limpeza de caracteres fantasmas no corpo
     corpo = f"Olá,\n\nSegue em anexo o PDF com as evidências da OS {os_numero}.\n\nEnviado via App Mobile Satte Alam."
-    corpo = corpo.replace('\xa0', ' ') # Remove o caractere que causou o erro
+    msg.set_content(corpo) # O set_content já trata UTF-8 automaticamente
+
+    # Anexando o PDF como dados binários puros (evita erro de codec)
+    msg.add_attachment(
+        pdf_bytes,
+        maintype='application',
+        subtype='pdf',
+        filename=filename
+    )
     
-    # AJUSTE 3: Forçar UTF-8 no MIMEText
-    msg.attach(MIMEText(corpo, 'plain', 'utf-8'))
-    
-    part = MIMEBase('application', 'octet-stream')
-    part.set_payload(pdf_bytes)
-    encoders.encode_base64(part)
-    part.add_header('Content-Disposition', f"attachment; filename= {filename}")
-    msg.attach(part)
-    
-    server = smtplib.SMTP('smtp.gmail.com', 587)
-    server.starttls()
-    server.login(remetente, senha)
-    
-    todos_destinatarios = [destinatario, EMAIL_COPIA]
-    server.sendmail(remetente, todos_destinatarios, msg.as_string().encode('utf-8')) # Envia como bytes utf-8
-    server.quit()
+    # Envio via SMTP
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        server.login(remetente, senha)
+        server.send_message(msg)
 
 def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
-    dados = dados.replace('\xa0', ' ').encode('latin-1', 'ignore').decode('latin-1')
+    # Forçamos a limpeza de qualquer caractere problemático antes de entrar no PDF
+    dados_limpos = "".join(c for c in dados if ord(c) < 256).replace('\xa0', ' ')
+    
     pdf = FPDF()
     pdf.add_page()
+    
     if os.path.exists("assets/logo.png"):
         pdf.image("assets/logo.png", x=10, y=8, w=33)
     
@@ -75,24 +68,22 @@ def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
     pdf.cell(0, 10, f"OS: {os_numero} | Consultor: {consultor}", ln=True)
     pdf.cell(0, 10, f"Data: {datetime.now().strftime('%d/%m/%Y')}", ln=True)
     pdf.ln(5)
-    pdf.multi_cell(0, 10, f"Notas:\n{dados}")
+    
+    pdf.multi_cell(0, 10, f"Notas:\n{dados_limpos}")
     pdf.ln(10)
     
     for foto in fotos:
         img = Image.open(foto)
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
-        
         img_byte_arr = io.BytesIO()
-        img.save(img_byte_arr, format='JPEG')
-        
+        img.save(img_byte_arr, format='JPEG', quality=70) # Quality 70 para reduzir peso do email
         if pdf.get_y() > 220:
             pdf.add_page()
-        
-        # O fpdf2 aceita o io.BytesIO diretamente
         pdf.image(img_byte_arr, x=10, w=100)
         pdf.ln(5)
-    return bytes(pdf.output())
+        
+    return pdf.output() # No fpdf2 isso já retorna bytes
 
 # --- INTERFACE ---
 st.set_page_config(page_title="Satte Alam Mobile", layout="centered")
@@ -122,21 +113,23 @@ if st.session_state.lista_fotos:
 
 texto = st.text_area("Observações Técnicas")
 
-# --- BOTÕES DE AÇÃO ---
+# --- LÓGICA DE ENVIO ---
 if not st.session_state.email_enviado:
     if st.button("🚀 Finalizar e Enviar Orçamento", use_container_width=True):
         if os_num and st.session_state.lista_fotos:
-            with st.spinner("Enviando e-mail..."):
+            with st.spinner("Enviando..."):
                 try:
-                    pdf_final = gerar_pdf_bytes(texto, st.session_state.lista_fotos, consultor_nome, os_num)
-                    st.session_state.pdf_pronto = pdf_final
+                    # 1. Gera o PDF
+                    pdf_bytes = gerar_pdf_bytes(texto, st.session_state.lista_fotos, consultor_nome, os_num)
+                    st.session_state.pdf_pronto = pdf_bytes
                     
-                    enviar_email(pdf_final, f"OS_{os_num}.pdf", CONSULTORES[consultor_nome], os_num)
+                    # 2. Envia Email (Blindado)
+                    enviar_email_blindado(pdf_bytes, f"OS_{os_num}.pdf", CONSULTORES[consultor_nome], os_num)
                     
                     st.session_state.email_enviado = True
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Erro: {e}")
+                    st.error(f"Erro Crítico: {e}")
         else:
             st.warning("⚠️ Informe a OS e capture fotos.")
 
