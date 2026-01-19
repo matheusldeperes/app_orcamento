@@ -9,6 +9,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+import re
 
 # --- CONFIGURAÇÕES ---
 CONSULTORES = {
@@ -27,17 +28,23 @@ if 'email_enviado' not in st.session_state:
     st.session_state.email_enviado = False
 
 def enviar_email(pdf_bytes, filename, destinatario, os_numero):
-    # Pega os dados dos Secrets (Configurado no Streamlit Cloud ou secrets.toml)
     remetente = st.secrets["email_usuario"]
     senha = st.secrets["email_senha"]
+    
     msg = MIMEMultipart()
     msg['From'] = remetente
     msg['To'] = destinatario
     msg['Cc'] = EMAIL_COPIA
+    
+    # AJUSTE 1: Assunto com UTF-8
     msg['Subject'] = f"Orçamento - Evidências da OS_{os_numero}"
     
+    # AJUSTE 2: Limpeza de caracteres fantasmas no corpo
     corpo = f"Olá,\n\nSegue em anexo o PDF com as evidências da OS {os_numero}.\n\nEnviado via App Mobile Satte Alam."
-    msg.attach(MIMEText(corpo, 'plain'))
+    corpo = corpo.replace('\xa0', ' ') # Remove o caractere que causou o erro
+    
+    # AJUSTE 3: Forçar UTF-8 no MIMEText
+    msg.attach(MIMEText(corpo, 'plain', 'utf-8'))
     
     part = MIMEBase('application', 'octet-stream')
     part.set_payload(pdf_bytes)
@@ -45,17 +52,16 @@ def enviar_email(pdf_bytes, filename, destinatario, os_numero):
     part.add_header('Content-Disposition', f"attachment; filename= {filename}")
     msg.attach(part)
     
-    # Conexão segura com o servidor do Gmail
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.starttls()
     server.login(remetente, senha)
     
     todos_destinatarios = [destinatario, EMAIL_COPIA]
-    server.sendmail(remetente, todos_destinatarios, msg.as_string())
+    server.sendmail(remetente, todos_destinatarios, msg.as_string().encode('utf-8')) # Envia como bytes utf-8
     server.quit()
 
 def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
-    dados = dados.replace('\xa0', ' ')
+    dados = dados.replace('\xa0', ' ').encode('latin-1', 'ignore').decode('latin-1')
     pdf = FPDF()
     pdf.add_page()
     if os.path.exists("assets/logo.png"):
