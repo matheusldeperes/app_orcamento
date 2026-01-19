@@ -12,7 +12,7 @@ from googleapiclient.http import MediaIoBaseUpload
 # --- CONFIGURAÇÕES ---
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 # Substitua pelo ID da pasta Satte Alam no seu Google Drive
-PARENT_FOLDER_ID = 'SUA_ID_AQUI' 
+PARENT_FOLDER_ID = '1nv3SIx2cWzOJnCa6iS4aBDdBklWNvsVj' 
 
 # Inicialização do Estado para as Fotos
 if 'lista_fotos' not in st.session_state:
