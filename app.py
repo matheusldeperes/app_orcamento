@@ -23,19 +23,22 @@ if 'finalizado' not in st.session_state:
     st.session_state.finalizado = False
 
 def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
-    # Margem de 1 polegada = 25.4 mm
     margem = 25.4
     largura_disponivel = 210 - (2 * margem)
+    largura_logo = 40 # Aumentei um pouco para melhor visibilidade
     
     pdf = FPDF()
     pdf.set_margins(left=margem, top=margem, right=margem)
     pdf.add_page()
     
+    # Centralização do logo no PDF: (Largura Total - Largura Logo) / 2
+    pos_x_logo = (210 - largura_logo) / 2
+    
     if os.path.exists("assets/logo.png"):
-        pdf.image("assets/logo.png", x=margem, y=8, w=33)
+        pdf.image("assets/logo.png", x=pos_x_logo, y=15, w=largura_logo)
     
     pdf.set_font("helvetica", "B", 16)
-    pdf.ln(10)
+    pdf.ln(25) # Espaço maior após o logo centralizado
     pdf.cell(0, 10, "Satte Alam - Orcamento", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
     pdf.ln(10)
     
@@ -69,11 +72,24 @@ def gerar_pdf_bytes(dados, fotos, consultor, os_numero):
 # --- INTERFACE ---
 st.set_page_config(page_title="Satte Alam Mobile", layout="centered")
 
-# Centralização da logo na interface do app
+# CSS para centralizar a imagem no App Streamlit de forma absoluta
+st.markdown(
+    """
+    <style>
+    .centered-img {
+        display: flex;
+        justify-content: center;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 if os.path.exists("assets/logo.png"):
-    col_logo_1, col_logo_2, col_logo_3 = st.columns([1, 1, 1])
-    with col_logo_2:
-        st.image("assets/logo.png", width=150)
+    # Cria uma div centralizada para a logo
+    st.markdown('<div class="centered-img">', unsafe_allow_html=True)
+    st.image("assets/logo.png", width=150)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 st.title("Registro de Evidencias")
 
@@ -127,7 +143,7 @@ if st.session_state.finalizado:
     msg = f"Ola {consultor_nome}, seguem fotos da OS {os_num}. (Anexe o PDF que voce baixou)"
     link_zap = f"https://wa.me/{numero_zap}?text={urllib.parse.quote(msg)}"
     
-    st.link_button(f"2. ENVIAR WHATSAPP", link_zap, use_container_width=True)
+    st.link_button("2. ENVIAR WHATSAPP", link_zap, use_container_width=True)
 
     if st.button("Limpar para Nova OS"):
         st.session_state.lista_fotos = []
