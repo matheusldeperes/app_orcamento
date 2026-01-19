@@ -1,0 +1,11 @@
+# Ignorar credenciais do Google
+credentials.json
+
+# Ignorar pastas virtuais do Python (se você usar)
+__pycache__/
+venv/
+.env
+
+# Ignorar arquivos temporários do sistema
+.DS_Store
+Thumbs.db
