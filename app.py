@@ -9,7 +9,7 @@ import urllib.parse
 
 # --- CONFIGURAÇÕES ---
 CONSULTORES = {
-    "Diulie": "555330261206",
+    "Diulie": "555330261205",
     "José": "555330261204",
     "Jonathan": "555330261329"
 }
