@@ -85,90 +85,70 @@ def enviar_email(arquivo_pdf_bytes, os_numero, consultor_nome, destinatarios):
         return False
 
 def gerar_pdf_bytes(logo_path, consultor, os_numero, observacoes, fotos):
-    """Gera PDF com logo no topo, dados do consultor e fotos compactadas sem espaços em branco"""
-    margem = 12
+    """Gera PDF com logo no topo, dados do consultor e fotos"""
+    margem = 20
     largura_pagina = 210
     altura_pagina = 297
     largura_disponivel = largura_pagina - (2 * margem)
-    altura_max_foto = 90  # Altura máxima de cada foto em mm
     
     pdf = FPDF()
     pdf.set_margins(left=margem, top=margem, right=margem)
     pdf.add_page()
     
-    # ===== LOGO NO TOPO =====
     if os.path.exists(logo_path):
-        pos_x_logo = (largura_pagina - 35) / 2
-        pdf.image(logo_path, x=pos_x_logo, y=margem, w=35)
-        pdf.ln(25)
+        pos_x_logo = (largura_pagina - 50) / 2
+        pdf.image(logo_path, x=pos_x_logo, y=margem, w=50)
+        pdf.ln(35)
     
-    # ===== TÍTULO E INFORMAÇÕES =====
-    pdf.set_font("helvetica", "B", 11)
-    pdf.cell(0, 5, "Satte Alam", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
+    pdf.set_font("helvetica", "B", 14)
+    pdf.cell(0, 8, "Satte Alam", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
     
-    pdf.set_font("helvetica", "B", 8)
-    pdf.cell(0, 4, f"Consultor: {consultor}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.set_font("helvetica", "B", 10)
+    pdf.ln(5)
+    pdf.cell(0, 7, f"Consultor: {consultor}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     
-    pdf.set_font("helvetica", size=8)
-    pdf.cell(0, 4, f"OS: {os_numero}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.cell(0, 4, f"Data: {datetime.now().strftime('%d/%m/%Y')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.set_font("helvetica", size=10)
+    pdf.cell(0, 7, f"Numero da OS: {os_numero}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 7, f"Data: {datetime.now().strftime('%d/%m/%Y')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     
-    # ===== OBSERVAÇÕES =====
-    pdf.ln(2)
-    pdf.set_font("helvetica", "B", 8)
-    pdf.cell(0, 4, "Observações:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.ln(5)
+    pdf.set_font("helvetica", "B", 10)
+    pdf.cell(0, 7, "Observacoes Importantes:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     
-    pdf.set_font("helvetica", size=7)
+    pdf.set_font("helvetica", size=9)
     if observacoes:
         try:
             obs_tratada = observacoes.encode('latin-1', 'ignore').decode('latin-1')
         except:
             obs_tratada = observacoes
-        pdf.multi_cell(0, 3, obs_tratada)
+        pdf.multi_cell(0, 5, obs_tratada)
     else:
-        pdf.cell(0, 3, "Nenhuma observação.", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 5, "Nenhuma observacao adicionada.", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     
-    # ===== FOTOS =====
-    pdf.set_font("helvetica", "B", 8)
-    pdf.cell(0, 4, "Evidências:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.ln(1)
+    pdf.ln(8)
+    
+    pdf.set_font("helvetica", "B", 10)
+    pdf.cell(0, 7, "Evidencias:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.ln(5)
     
     for idx, foto in enumerate(fotos, 1):
         img = Image.open(foto)
         
-        # Converter RGBA para RGB
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
         
-        # Redimensionar para qualidade otimizada
         img_byte_arr = io.BytesIO()
-        img.save(img_byte_arr, format='JPEG', quality=75)
+        img.save(img_byte_arr, format='JPEG', quality=85)
         img_byte_arr.seek(0)
         
-        # Calcular dimensões mantendo proporção (limitando altura)
         largura_img, altura_img = img.size
-        razao = altura_img / largura_img
+        altura_no_pdf = (largura_disponivel / largura_img) * altura_img
         
-        # Definir altura máxima e calcular largura proporcional
-        altura_final = altura_max_foto
-        largura_final = altura_final / razao
-        
-        # Se a largura calculada exceder a disponível, ajustar
-        if largura_final > largura_disponivel:
-            largura_final = largura_disponivel
-            altura_final = largura_final * razao
-        
-        # Verificar se cabe na página atual
-        espaco_vertical = altura_pagina - pdf.get_y() - margem - 2
-        
-        if altura_final > espaco_vertical:
-            # Criar nova página se não couber
+        if pdf.get_y() + altura_no_pdf > altura_pagina - margem:
             pdf.add_page()
         
-        # Inserir imagem centralizada
-        x_pos = margem + (largura_disponivel - largura_final) / 2
-        pdf.image(img_byte_arr, x=x_pos, w=largura_final)
-        pdf.ln(1)  # Espaço mínimo entre fotos
+        pdf.image(img_byte_arr, x=margem, w=largura_disponivel)
+        pdf.ln(3)
     
     return bytes(pdf.output())
 
@@ -198,18 +178,16 @@ if os.path.exists("assets/logo.png"):
     st.image("assets/logo.png", width=150)
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.title("📋 Registro de Evidências")
+st.title("Registro de Evidencias")
 
-# ===== FORMULÁRIO =====
 c1, c2 = st.columns(2)
-consultor_nome = c1.selectbox("👤 Consultor", list(CONSULTORES.keys()))
-os_num = c2.text_input("🔢 Número da OS", placeholder="Ex: 123456")
+consultor_nome = c1.selectbox("Consultor", list(CONSULTORES.keys()))
+os_num = c2.text_input("Numero da OS", placeholder="Ex: 123456")
 
 st.divider()
 
-# ===== CAPTURA COM CÂMERA TRASEIRA =====
-st.subheader("📸 Captura de Fotos")
-st.info("💡 Em mobile, clique na câmera rotativa para usar a câmera traseira", icon="ℹ️")
+st.subheader("Captura de Fotos")
+st.info("Em mobile, clique na camera rotativa para usar a camera traseira")
 
 foto_capturada = st.camera_input("Capturar Foto")
 
@@ -217,32 +195,29 @@ if foto_capturada:
     if 'ultima_foto_id' not in st.session_state or st.session_state.ultima_foto_id != foto_capturada.name:
         st.session_state.lista_fotos.append(foto_capturada)
         st.session_state.ultima_foto_id = foto_capturada.name
-        st.success(f"✅ Foto {len(st.session_state.lista_fotos)} adicionada")
+        st.success(f"Foto {len(st.session_state.lista_fotos)} adicionada")
 
-# ===== EXIBIÇÃO DE FOTOS CAPTURADAS =====
 if st.session_state.lista_fotos:
-    st.subheader(f"📷 Evidências Capturadas ({len(st.session_state.lista_fotos)})")
+    st.subheader(f"Evidencias Capturadas ({len(st.session_state.lista_fotos)})")
     cols = st.columns(2)
     for i, foto in enumerate(st.session_state.lista_fotos):
         with cols[i % 2]:
             st.image(foto, use_container_width=True)
-            if st.button(f"❌ Remover Foto {i+1}", key=f"del_{i}"):
+            if st.button(f"Remover Foto {i+1}", key=f"del_{i}"):
                 st.session_state.lista_fotos.pop(i)
                 st.rerun()
 
 st.divider()
 
-# ===== OBSERVAÇÕES =====
-observacoes = st.text_area("📝 Observações Importantes", placeholder="Digite observações técnicas ou adicionais...")
+observacoes = st.text_area("Observacoes Importantes", placeholder="Digite observacoes tecnicas ou adicionais...")
 
 st.divider()
 
-# ===== BOTÃO GERAR ORÇAMENTO =====
 if not st.session_state.finalizado:
     botao_liberado = bool(os_num and st.session_state.lista_fotos)
     
-    if st.button("✅ Gerar Orçamento", use_container_width=True, disabled=not botao_liberado):
-        with st.spinner("Gerando PDF..."):
+    if st.button("Gerar Orcamento", use_container_width=True, disabled=not botao_liberado):
+        with st.spinner("Gerando PDF e enviando email..."):
             pdf_bytes = gerar_pdf_bytes(
                 "assets/logo.png",
                 consultor_nome,
@@ -251,45 +226,28 @@ if not st.session_state.finalizado:
                 st.session_state.lista_fotos
             )
             st.session_state.pdf_pronto = pdf_bytes
+            
+            destinatarios = [
+                CONSULTORES[consultor_nome]["email"],
+                EMAIL_OFICINA
+            ]
+            enviar_email(st.session_state.pdf_pronto, os_num, consultor_nome, destinatarios)
+            
             st.session_state.finalizado = True
             st.rerun()
 
-# ===== APÓS GERAR ORÇAMENTO =====
 if st.session_state.finalizado:
-    st.success(f"✅ PDF da OS {os_num} Gerado com Sucesso!")
+    st.success(f"PDF da OS {os_num} Gerado e Enviado com Sucesso!")
     
-    # Botão para baixar
     st.download_button(
-        label="📥 Baixar PDF",
+        label="Baixar PDF do Orcamento",
         data=st.session_state.pdf_pronto,
         file_name=f"OS_{os_num}.pdf",
         mime="application/pdf",
         use_container_width=True
     )
     
-    # Botão para enviar por email
-    if st.button("📧 Enviar por Email (Consultor + Oficina)", use_container_width=True):
-        with st.spinner("Enviando emails..."):
-            destinatarios = [
-                CONSULTORES[consultor_nome]["email"],
-                EMAIL_OFICINA
-            ]
-            sucesso = enviar_email(st.session_state.pdf_pronto, os_num, consultor_nome, destinatarios)
-            
-            if sucesso:
-                st.success(f"✅ PDF enviado com sucesso para:\n- {CONSULTORES[consultor_nome]['email']}\n- {EMAIL_OFICINA}")
-                st.session_state.pdf_enviado = True
-            else:
-                st.error("""❌ Erro ao enviar emails. Verifique:
-                
-1. **SENDER_EMAIL** está configurado no Streamlit Secrets?
-2. **SENDER_PASSWORD** é a senha de app (16 caracteres)?
-3. **2FA** está ativo no Gmail?
-
-Consulte: https://myaccount.google.com/apppasswords""")
-    
-    # Botão limpar
-    if st.button("🔄 Limpar para Nova OS", use_container_width=True):
+    if st.button("Limpar para Nova OS", use_container_width=True):
         st.session_state.lista_fotos = []
         st.session_state.pdf_pronto = None
         st.session_state.finalizado = False
