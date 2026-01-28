@@ -141,13 +141,18 @@ def gerar_pdf_bytes(logo_path, consultor, os_numero, observacoes, fotos):
         img.save(img_byte_arr, format='JPEG', quality=85)
         img_byte_arr.seek(0)
         
+        # Reduzir tamanho em 75% (usar 25% da largura disponível)
+        largura_foto = largura_disponivel * 0.25
+        
         largura_img, altura_img = img.size
-        altura_no_pdf = (largura_disponivel / largura_img) * altura_img
+        altura_no_pdf = (largura_foto / largura_img) * altura_img
         
         if pdf.get_y() + altura_no_pdf > altura_pagina - margem:
             pdf.add_page()
         
-        pdf.image(img_byte_arr, x=margem, w=largura_disponivel)
+        # Centralizar a imagem
+        x_centralizado = margem + (largura_disponivel - largura_foto) / 2
+        pdf.image(img_byte_arr, x=x_centralizado, w=largura_foto)
         pdf.ln(3)
     
     return bytes(pdf.output())
