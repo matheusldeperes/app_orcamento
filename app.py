@@ -101,7 +101,7 @@ def gerar_pdf_bytes(logo_path, consultor, os_numero, observacoes, fotos):
         pdf.ln(35)
     
     pdf.set_font("helvetica", "B", 14)
-    pdf.cell(0, 8, "Satte Alam", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
+    pdf.cell(0, 8, "Registro de Evidências com Fotos - Satte Alam", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
     
     pdf.set_font("helvetica", "B", 10)
     pdf.ln(5)
