@@ -14,11 +14,11 @@ from email import encoders
 # --- CONFIGURAÇÕES ---
 CONSULTORES = {
     "Diulie": {
-        "email": "oficina@sattealam.com",
+        "email": "diulie@sattealam.com",
         "whatsapp": "555330261205"
     },
     "José": {
-        "email": "jose@sattealam.com",
+        "email": "joseantonio@sattealam.com",
         "whatsapp": "555330261204"
     },
     "Jonathan": {
