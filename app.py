@@ -142,7 +142,7 @@ def gerar_pdf_bytes(logo_path, consultor, os_numero, observacoes, fotos):
         img_byte_arr.seek(0)
         
         # Reduzir tamanho em 75% (usar 25% da largura disponível)
-        largura_foto = largura_disponivel * 0.25
+        largura_foto = largura_disponivel * 0.75
         
         largura_img, altura_img = img.size
         altura_no_pdf = (largura_foto / largura_img) * altura_img
