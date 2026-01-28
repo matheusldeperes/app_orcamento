@@ -14,7 +14,7 @@ from email import encoders
 # --- CONFIGURAÇÕES ---
 CONSULTORES = {
     "Diulie": {
-        "email": "diulie@sattealam.com",
+        "email": "oficina@sattealam.com",
         "whatsapp": "555330261205"
     },
     "José": {
@@ -28,7 +28,7 @@ CONSULTORES = {
 }
 
 EMAIL_OFICINA = "oficina@sattealam.com"
-SENDER_EMAIL = st.secrets.get("SENDER_EMAIL", "noreply@sattealam.com")
+SENDER_EMAIL = st.secrets.get("SENDER_EMAIL", "matheusldeperes@gmail.com")
 SENDER_PASSWORD = st.secrets.get("SENDER_PASSWORD", "")
 
 # Inicialização do Estado
@@ -271,7 +271,13 @@ if st.session_state.finalizado:
                 st.success(f"✅ PDF enviado com sucesso para:\n- {CONSULTORES[consultor_nome]['email']}\n- {EMAIL_OFICINA}")
                 st.session_state.pdf_enviado = True
             else:
-                st.error("❌ Erro ao enviar emails. Verifique as credenciais de email.")
+                st.error("""❌ Erro ao enviar emails. Verifique:
+                
+1. **SENDER_EMAIL** está configurado no Streamlit Secrets?
+2. **SENDER_PASSWORD** é a senha de app (16 caracteres)?
+3. **2FA** está ativo no Gmail?
+
+Consulte: https://myaccount.google.com/apppasswords""")
     
     # Botão limpar
     if st.button("🔄 Limpar para Nova OS", use_container_width=True):
