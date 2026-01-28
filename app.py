@@ -85,8 +85,8 @@ def enviar_email(arquivo_pdf_bytes, os_numero, consultor_nome, destinatarios):
         return False
 
 def gerar_pdf_bytes(logo_path, consultor, os_numero, observacoes, fotos):
-    """Gera PDF com logo no topo, dados do consultor e fotos"""
-    margem = 20
+    """Gera PDF com logo no topo, dados do consultor e fotos sem páginas em branco"""
+    margem = 15
     largura_pagina = 210
     altura_pagina = 297
     largura_disponivel = largura_pagina - (2 * margem)
@@ -97,44 +97,42 @@ def gerar_pdf_bytes(logo_path, consultor, os_numero, observacoes, fotos):
     
     # ===== LOGO NO TOPO =====
     if os.path.exists(logo_path):
-        pos_x_logo = (largura_pagina - 50) / 2
-        pdf.image(logo_path, x=pos_x_logo, y=margem, w=50)
-        pdf.ln(35)
+        pos_x_logo = (largura_pagina - 40) / 2
+        pdf.image(logo_path, x=pos_x_logo, y=margem, w=40)
+        pdf.ln(28)
     
     # ===== TÍTULO E INFORMAÇÕES =====
-    pdf.set_font("helvetica", "B", 14)
-    pdf.cell(0, 8, "Satte Alam", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
+    pdf.set_font("helvetica", "B", 12)
+    pdf.cell(0, 6, "Satte Alam", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
     
-    pdf.set_font("helvetica", "B", 10)
-    pdf.ln(5)
-    pdf.cell(0, 7, f"Consultor: {consultor}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    
-    pdf.set_font("helvetica", size=10)
-    pdf.cell(0, 7, f"Número da OS: {os_numero}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.cell(0, 7, f"Data: {datetime.now().strftime('%d/%m/%Y')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    
-    # ===== OBSERVAÇÕES =====
-    pdf.ln(5)
-    pdf.set_font("helvetica", "B", 10)
-    pdf.cell(0, 7, "Observações Importantes:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.set_font("helvetica", "B", 9)
+    pdf.cell(0, 5, f"Consultor: {consultor}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     
     pdf.set_font("helvetica", size=9)
+    pdf.cell(0, 5, f"Número da OS: {os_numero}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 5, f"Data: {datetime.now().strftime('%d/%m/%Y')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    
+    # ===== OBSERVAÇÕES =====
+    pdf.ln(3)
+    pdf.set_font("helvetica", "B", 9)
+    pdf.cell(0, 5, "Observações:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    
+    pdf.set_font("helvetica", size=8)
     if observacoes:
-        # Tratar caracteres especiais
         try:
             obs_tratada = observacoes.encode('latin-1', 'ignore').decode('latin-1')
         except:
             obs_tratada = observacoes
-        pdf.multi_cell(0, 5, obs_tratada)
+        pdf.multi_cell(0, 4, obs_tratada)
     else:
-        pdf.cell(0, 5, "Nenhuma observação adicionada.", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 4, "Nenhuma observação.", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     
-    pdf.ln(8)
+    pdf.ln(2)
     
     # ===== FOTOS =====
-    pdf.set_font("helvetica", "B", 10)
-    pdf.cell(0, 7, "Evidências:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.ln(5)
+    pdf.set_font("helvetica", "B", 9)
+    pdf.cell(0, 5, "Evidências:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.ln(3)
     
     for idx, foto in enumerate(fotos, 1):
         img = Image.open(foto)
@@ -145,21 +143,21 @@ def gerar_pdf_bytes(logo_path, consultor, os_numero, observacoes, fotos):
         
         # Redimensionar para qualidade otimizada
         img_byte_arr = io.BytesIO()
-        img.save(img_byte_arr, format='JPEG', quality=85)
+        img.save(img_byte_arr, format='JPEG', quality=80)
         img_byte_arr.seek(0)
         
         # Calcular dimensões mantendo proporção
         largura_img, altura_img = img.size
         altura_no_pdf = (largura_disponivel / largura_img) * altura_img
         
-        # Verificar se cabe na página, senão criar página nova
-        if pdf.get_y() + altura_no_pdf > altura_pagina - margem:
+        # Verificar se cabe na página (com margem mínima), senão criar página nova
+        espaco_disponivel = altura_pagina - pdf.get_y() - margem
+        if altura_no_pdf > espaco_disponivel:
             pdf.add_page()
         
-        # Posicionar imagem centralizada
-        pos_x_img = margem + (largura_disponivel - largura_disponivel) / 2
+        # Inserir imagem usando largura total disponível
         pdf.image(img_byte_arr, x=margem, w=largura_disponivel)
-        pdf.ln(10)
+        pdf.ln(2)
     
     return bytes(pdf.output())
 
