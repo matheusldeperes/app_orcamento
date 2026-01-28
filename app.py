@@ -113,7 +113,7 @@ def gerar_pdf_bytes(logo_path, consultor, os_numero, observacoes, fotos):
     
     pdf.ln(5)
     pdf.set_font("helvetica", "B", 10)
-    pdf.cell(0, 7, "Observacoes Importantes:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 7, "Observações Importantes:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     
     pdf.set_font("helvetica", size=9)
     if observacoes:
@@ -123,12 +123,12 @@ def gerar_pdf_bytes(logo_path, consultor, os_numero, observacoes, fotos):
             obs_tratada = observacoes
         pdf.multi_cell(0, 5, obs_tratada)
     else:
-        pdf.cell(0, 5, "Nenhuma observacao adicionada.", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 5, "Nenhuma observação adicionada.", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     
     pdf.ln(8)
     
     pdf.set_font("helvetica", "B", 10)
-    pdf.cell(0, 7, "Evidencias:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 7, "Evidências:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(5)
     
     for idx, foto in enumerate(fotos, 1):
@@ -141,7 +141,7 @@ def gerar_pdf_bytes(logo_path, consultor, os_numero, observacoes, fotos):
         img.save(img_byte_arr, format='JPEG', quality=85)
         img_byte_arr.seek(0)
         
-        # Reduzir tamanho em 75% (usar 25% da largura disponível)
+        # Reduzir tamanho em 75% (usar 75% da largura disponível)
         largura_foto = largura_disponivel * 0.75
         
         largura_img, altura_img = img.size
@@ -183,16 +183,16 @@ if os.path.exists("assets/logo.png"):
     st.image("assets/logo.png", width=150)
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.title("Registro de Evidencias")
+st.title("Registro de Evidências")
 
 c1, c2 = st.columns(2)
 consultor_nome = c1.selectbox("Consultor", list(CONSULTORES.keys()))
-os_num = c2.text_input("Numero da OS", placeholder="Ex: 123456")
+os_num = c2.text_input("Número da OS", placeholder="Ex: 153106")
 
 st.divider()
 
 st.subheader("Captura de Fotos")
-st.info("Em mobile, clique na camera rotativa para usar a camera traseira")
+st.info("Em mobile, clique na câmera rotativa para usar a câmera traseira")
 
 foto_capturada = st.camera_input("Capturar Foto")
 
@@ -203,7 +203,7 @@ if foto_capturada:
         st.success(f"Foto {len(st.session_state.lista_fotos)} adicionada")
 
 if st.session_state.lista_fotos:
-    st.subheader(f"Evidencias Capturadas ({len(st.session_state.lista_fotos)})")
+    st.subheader(f"Evidências Capturadas ({len(st.session_state.lista_fotos)})")
     cols = st.columns(2)
     for i, foto in enumerate(st.session_state.lista_fotos):
         with cols[i % 2]:
@@ -214,14 +214,14 @@ if st.session_state.lista_fotos:
 
 st.divider()
 
-observacoes = st.text_area("Observacoes Importantes", placeholder="Digite observacoes tecnicas ou adicionais...")
+observacoes = st.text_area("Observações Importantes", placeholder="Digite observações técnicas ou adicionais...")
 
 st.divider()
 
 if not st.session_state.finalizado:
     botao_liberado = bool(os_num and st.session_state.lista_fotos)
     
-    if st.button("Gerar Orcamento", use_container_width=True, disabled=not botao_liberado):
+    if st.button("Gerar Orçamento", use_container_width=True, disabled=not botao_liberado):
         with st.spinner("Gerando PDF e enviando email..."):
             pdf_bytes = gerar_pdf_bytes(
                 "assets/logo.png",
@@ -245,7 +245,7 @@ if st.session_state.finalizado:
     st.success(f"PDF da OS {os_num} Gerado e Enviado com Sucesso!")
     
     st.download_button(
-        label="Baixar PDF do Orcamento",
+        label="Baixar PDF do Orçamento",
         data=st.session_state.pdf_pronto,
         file_name=f"OS_{os_num}.pdf",
         mime="application/pdf",
