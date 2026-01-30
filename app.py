@@ -40,6 +40,8 @@ if 'finalizado' not in st.session_state:
     st.session_state.finalizado = False
 if 'pdf_enviado' not in st.session_state:
     st.session_state.pdf_enviado = False
+if 'uploaded_fotos_ids' not in st.session_state:
+    st.session_state.uploaded_fotos_ids = set()
 
 def enviar_email(arquivo_pdf_bytes, os_numero, consultor_nome, destinatarios):
     """Envia o PDF para os consultores e oficina"""
@@ -193,14 +195,36 @@ st.divider()
 
 st.subheader("Captura de Fotos")
 st.info("Em mobile, clique na câmera rotativa para usar a câmera traseira")
+st.caption("⚠️ O controle de flash não está disponível na câmera do navegador. Como alternativa, use o envio de foto após tirar com o app da câmera (com flash).")
 
-foto_capturada = st.camera_input("Capturar Foto")
+modo_captura = st.radio(
+    "Modo de captura",
+    ["Câmera do navegador", "Enviar foto do aparelho"],
+    horizontal=True
+)
 
-if foto_capturada:
-    if 'ultima_foto_id' not in st.session_state or st.session_state.ultima_foto_id != foto_capturada.name:
-        st.session_state.lista_fotos.append(foto_capturada)
-        st.session_state.ultima_foto_id = foto_capturada.name
-        st.success(f"Foto {len(st.session_state.lista_fotos)} adicionada")
+if modo_captura == "Câmera do navegador":
+    foto_capturada = st.camera_input("Capturar Foto")
+
+    if foto_capturada:
+        if 'ultima_foto_id' not in st.session_state or st.session_state.ultima_foto_id != foto_capturada.name:
+            st.session_state.lista_fotos.append(foto_capturada)
+            st.session_state.ultima_foto_id = foto_capturada.name
+            st.success(f"Foto {len(st.session_state.lista_fotos)} adicionada")
+else:
+    fotos_enviadas = st.file_uploader(
+        "Enviar foto (use o app da câmera com flash e selecione aqui)",
+        type=["jpg", "jpeg", "png"],
+        accept_multiple_files=True
+    )
+
+    if fotos_enviadas:
+        for foto in fotos_enviadas:
+            foto_id = f"{foto.name}-{foto.size}"
+            if foto_id not in st.session_state.uploaded_fotos_ids:
+                st.session_state.lista_fotos.append(foto)
+                st.session_state.uploaded_fotos_ids.add(foto_id)
+                st.success(f"Foto {len(st.session_state.lista_fotos)} adicionada")
 
 if st.session_state.lista_fotos:
     st.subheader(f"Evidências Capturadas ({len(st.session_state.lista_fotos)})")
@@ -257,6 +281,7 @@ if st.session_state.finalizado:
         st.session_state.pdf_pronto = None
         st.session_state.finalizado = False
         st.session_state.pdf_enviado = False
+        st.session_state.uploaded_fotos_ids = set()
         if 'ultima_foto_id' in st.session_state:
             del st.session_state.ultima_foto_id
         st.rerun()
