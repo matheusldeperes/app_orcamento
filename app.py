@@ -3,6 +3,7 @@ from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 import os
 from datetime import datetime
+import pytz
 from PIL import Image
 import io
 import smtplib
@@ -50,6 +51,10 @@ if 'uploaded_fotos_ids' not in st.session_state:
 def enviar_email(arquivo_pdf_bytes, os_numero, consultor_nome, destinatarios):
     """Envia o PDF para os consultores e oficina"""
     try:
+        # Obter horário de São Paulo
+        tz_sp = pytz.timezone('America/Sao_Paulo')
+        data_hora_sp = datetime.now(tz_sp).strftime('%d/%m/%Y %H:%M')
+        
         msg = MIMEMultipart()
         msg['From'] = SENDER_EMAIL
         msg['To'] = ", ".join(destinatarios)
@@ -61,7 +66,7 @@ def enviar_email(arquivo_pdf_bytes, os_numero, consultor_nome, destinatarios):
                 <p>Olá,</p>
                 <p>Segue em anexo o orçamento da OS <strong>{os_numero}</strong></p>
                 <p>Consultor: <strong>{consultor_nome}</strong></p>
-                <p>Data: <strong>{datetime.now().strftime('%d/%m/%Y %H:%M')}</strong></p>
+                <p>Data: <strong>{data_hora_sp}</strong></p>
                 <p>Atenciosamente,<br>Sistema Satte Alam</p>
             </body>
         </html>
