@@ -24,6 +24,10 @@ CONSULTORES = {
     "Jonathan": {
         "email": "jonathan@sattealam.com",
         "whatsapp": "555330261329"
+    },
+    "Bruna": {
+        "email": "bruna@sattealam.com",
+        "whatsapp": ""
     }
 }
 
