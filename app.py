@@ -97,6 +97,10 @@ def enviar_email(arquivo_pdf_bytes, os_numero, consultor_nome, destinatarios):
 
 def gerar_pdf_bytes(logo_path, consultor, os_numero, observacoes, fotos):
     """Gera PDF com logo no topo, dados do consultor e fotos"""
+    # Obter horário de São Paulo
+    tz_sp = pytz.timezone('America/Sao_Paulo')
+    data_sp = datetime.now(tz_sp).strftime('%d/%m/%Y')
+    
     margem = 20
     largura_pagina = 210
     altura_pagina = 297
@@ -120,7 +124,7 @@ def gerar_pdf_bytes(logo_path, consultor, os_numero, observacoes, fotos):
     
     pdf.set_font("helvetica", size=10)
     pdf.cell(0, 7, f"Numero da OS: {os_numero}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.cell(0, 7, f"Data: {datetime.now().strftime('%d/%m/%Y')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 7, f"Data: {data_sp}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     
     pdf.ln(5)
     pdf.set_font("helvetica", "B", 10)
